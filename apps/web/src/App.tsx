@@ -17,6 +17,7 @@ type Customer = { id: string; name: string; phone: string; totalPurchases: numbe
 type Supplier = { id: string; name: string; phone: string; totalPurchases: number; outstandingAmount: number };
 type Expense = { id: string; category: string; amount: number; description: string | null; expenseDate: string; addedBy: string };
 type Report = { metrics: { sales: number; orders: number; cost: number; expenses: number; profit: number; purchases: number; purchaseOrders: number; dueSales: number; purchaseDue: number; stockValue: number }; salesByDay: { date: string; total: number }[] };
+type NotificationItem = { id: string; title: string; body: string; type: string; isRead: boolean; createdAt: string };
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
@@ -136,6 +137,8 @@ function App() {
 function Dashboard({ user, onProducts, onInventory, onSales, onPurchases, onExpenses, onReports, onCustomers, onSuppliers, onSignOut }: { user: User; onProducts: () => void; onInventory: () => void; onSales: () => void; onPurchases: () => void; onExpenses: () => void; onReports: () => void; onCustomers: () => void; onSuppliers: () => void; onSignOut: () => void }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('shop_access_token');
@@ -149,10 +152,21 @@ function Dashboard({ user, onProducts, onInventory, onSales, onPurchases, onExpe
       .catch((requestError: unknown) => setError(requestError instanceof Error ? requestError.message : 'Dashboard data could not be loaded'));
   }, []);
 
+  useEffect(() => {
+    const token = localStorage.getItem('shop_access_token');
+    fetch(`${API_URL}/api/v1/notifications`, { headers: { Authorization: `Bearer ${token}` } }).then(async (response) => (await response.json() as { data: { notifications: NotificationItem[] } }).data.notifications).then(setNotifications).catch(() => undefined);
+  }, []);
+
+  async function markAllRead() {
+    const token = localStorage.getItem('shop_access_token');
+    await fetch(`${API_URL}/api/v1/notifications/read-all`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+    setNotifications((current) => current.map((notification) => ({ ...notification, isRead: true })));
+  }
+
   const metrics = data?.metrics;
   return <main className="dashboard">
     <aside className="sidebar"><div className="brand-lockup"><div className="brand-mark small">R</div><span>Rahman Store</span></div><nav>{['Overview', 'Products', 'Inventory', 'Sales / POS', 'Purchases', 'Customers', 'Suppliers', 'Expenses', 'Reports'].map((item, index) => <button onClick={index === 1 ? onProducts : index === 2 ? onInventory : index === 3 ? onSales : index === 4 ? onPurchases : index === 5 ? onCustomers : index === 6 ? onSuppliers : index === 7 ? onExpenses : index === 8 ? onReports : undefined} className={index === 0 ? 'nav-item active' : 'nav-item'} key={item}><span>{['⌂', '□', '▦', '＋', '↗', '◎', '◈', '◌', '▥'][index]}</span>{item}</button>)}</nav><button className="nav-item sign-out" onClick={onSignOut}>↪ <span>Sign out</span></button></aside>
-    <section className="dashboard-main"><header className="dashboard-header"><div><p className="eyebrow">{user.role} WORKSPACE</p><span className="mobile-shop-name">Rahman Store</span></div><div className="header-actions"><span className="notification">○</span><button className="mobile-sign-out" onClick={onSignOut}>Sign out</button></div></header>
+    <section className="dashboard-main"><header className="dashboard-header"><div><p className="eyebrow">{user.role} WORKSPACE</p><span className="mobile-shop-name">Rahman Store</span></div><div className="header-actions"><div className="notification-wrap"><button className="notification" onClick={() => setShowNotifications((current) => !current)} aria-label="Notifications">○{notifications.some((notification) => !notification.isRead) && <b>{notifications.filter((notification) => !notification.isRead).length}</b>}</button>{showNotifications && <div className="notification-panel"><div className="notification-heading"><strong>Notifications</strong><button onClick={() => void markAllRead()}>Mark all read</button></div>{notifications.length === 0 ? <p className="empty-state">You are all caught up.</p> : notifications.slice(0, 6).map((notification) => <div className={notification.isRead ? 'notification-item read' : 'notification-item'} key={notification.id}><strong>{notification.title}</strong><small>{notification.body}</small><time>{new Date(notification.createdAt).toLocaleDateString('en-BD')}</time></div>)}</div>}</div><button className="mobile-sign-out" onClick={onSignOut}>Sign out</button></div></header>
       <section className="dashboard-content"><h1>Good morning, {user.name.split(' ')[0]}.</h1><p className="dashboard-copy">Here is what is happening across your shop today.</p>{error && <p className="dashboard-error" role="alert">{error}</p>}
         {!data ? <div className="dashboard-loading"><span /> Loading today’s numbers...</div> : <>
           <div className="metric-grid"><article><span>Today’s sales</span><strong>{formatMoney(metrics!.sales)}</strong><small>{metrics!.orders} completed orders</small></article><article><span>Estimated profit</span><strong>{formatMoney(metrics!.profit)}</strong><small>After today’s expenses</small></article><article><span>Inventory value</span><strong>{formatMoney(metrics!.stockValue)}</strong><small>{metrics!.products} active products</small></article><article><span>Low stock</span><strong>{String(metrics!.lowStock).padStart(2, '0')}</strong><small>Items need attention</small></article></div>
