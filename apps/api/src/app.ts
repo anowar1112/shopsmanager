@@ -13,6 +13,8 @@ import { dashboardRouter } from './modules/dashboard/router.js';
 import { productsRouter } from './modules/products/router.js';
 import { salesRouter } from './modules/sales/router.js';
 import { customersRouter } from './modules/customers/router.js';
+import { suppliersRouter } from './modules/suppliers/router.js';
+import { purchasesRouter } from './modules/purchases/router.js';
 
 export function createApp(): Application {
   const app = express();
@@ -42,6 +44,8 @@ export function createApp(): Application {
   app.use('/api/v1/products', productsRouter);
   app.use('/api/v1/sales', salesRouter);
   app.use('/api/v1/customers', customersRouter);
+  app.use('/api/v1/suppliers', suppliersRouter);
+  app.use('/api/v1/purchases', purchasesRouter);
   // app.use('/api/v1/products', productRouter);
   // ...
 

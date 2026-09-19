@@ -14,6 +14,7 @@ type Product = { id: string; name: string; sku: string; unit: string; costPrice:
 type InventoryRow = { id: string; type: string; quantityChange: number; stockBefore: number; stockAfter: number; note: string | null; createdAt: string; changedBy: string; product: { name: string; sku: string; unit: string } };
 type CartItem = Product & { quantity: number };
 type Customer = { id: string; name: string; phone: string; outstandingAmount: number };
+type Supplier = { id: string; name: string; phone: string; outstandingAmount: number };
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
@@ -25,7 +26,7 @@ function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [screen, setScreen] = useState<'dashboard' | 'products' | 'inventory' | 'sales'>('dashboard');
+  const [screen, setScreen] = useState<'dashboard' | 'products' | 'inventory' | 'sales' | 'purchases'>('dashboard');
 
   useEffect(() => {
     const savedToken = localStorage.getItem('shop_access_token');
@@ -92,7 +93,7 @@ function App() {
     }
   }
 
-  if (user) return screen === 'products' ? <Products user={user} onHome={() => setScreen('dashboard')} onInventory={() => setScreen('inventory')} onSales={() => setScreen('sales')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} /> : screen === 'inventory' ? <Inventory user={user} onHome={() => setScreen('dashboard')} onProducts={() => setScreen('products')} onSales={() => setScreen('sales')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} /> : screen === 'sales' ? <Sales user={user} onHome={() => setScreen('dashboard')} onProducts={() => setScreen('products')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} /> : <Dashboard user={user} onProducts={() => setScreen('products')} onInventory={() => setScreen('inventory')} onSales={() => setScreen('sales')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} />;
+  if (user) return screen === 'products' ? <Products user={user} onHome={() => setScreen('dashboard')} onInventory={() => setScreen('inventory')} onSales={() => setScreen('sales')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} /> : screen === 'inventory' ? <Inventory user={user} onHome={() => setScreen('dashboard')} onProducts={() => setScreen('products')} onSales={() => setScreen('sales')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} /> : screen === 'sales' ? <Sales user={user} onHome={() => setScreen('dashboard')} onProducts={() => setScreen('products')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} /> : screen === 'purchases' ? <Purchases user={user} onHome={() => setScreen('dashboard')} onProducts={() => setScreen('products')} onInventory={() => setScreen('inventory')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} /> : <Dashboard user={user} onProducts={() => setScreen('products')} onInventory={() => setScreen('inventory')} onSales={() => setScreen('sales')} onPurchases={() => setScreen('purchases')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} />;
 
   return (
     <main className="auth-layout">
@@ -130,7 +131,7 @@ function App() {
   );
 }
 
-function Dashboard({ user, onProducts, onInventory, onSales, onSignOut }: { user: User; onProducts: () => void; onInventory: () => void; onSales: () => void; onSignOut: () => void }) {
+function Dashboard({ user, onProducts, onInventory, onSales, onPurchases, onSignOut }: { user: User; onProducts: () => void; onInventory: () => void; onSales: () => void; onPurchases: () => void; onSignOut: () => void }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
 
@@ -148,7 +149,7 @@ function Dashboard({ user, onProducts, onInventory, onSales, onSignOut }: { user
 
   const metrics = data?.metrics;
   return <main className="dashboard">
-    <aside className="sidebar"><div className="brand-lockup"><div className="brand-mark small">R</div><span>Rahman Store</span></div><nav>{['Overview', 'Products', 'Inventory', 'Sales / POS', 'Purchases', 'Customers', 'Expenses', 'Reports'].map((item, index) => <button onClick={index === 1 ? onProducts : index === 2 ? onInventory : index === 3 ? onSales : undefined} className={index === 0 ? 'nav-item active' : 'nav-item'} key={item}><span>{['⌂', '□', '▦', '＋', '↗', '◎', '◌', '▥'][index]}</span>{item}</button>)}</nav><button className="nav-item sign-out" onClick={onSignOut}>↪ <span>Sign out</span></button></aside>
+    <aside className="sidebar"><div className="brand-lockup"><div className="brand-mark small">R</div><span>Rahman Store</span></div><nav>{['Overview', 'Products', 'Inventory', 'Sales / POS', 'Purchases', 'Customers', 'Expenses', 'Reports'].map((item, index) => <button onClick={index === 1 ? onProducts : index === 2 ? onInventory : index === 3 ? onSales : index === 4 ? onPurchases : undefined} className={index === 0 ? 'nav-item active' : 'nav-item'} key={item}><span>{['⌂', '□', '▦', '＋', '↗', '◎', '◌', '▥'][index]}</span>{item}</button>)}</nav><button className="nav-item sign-out" onClick={onSignOut}>↪ <span>Sign out</span></button></aside>
     <section className="dashboard-main"><header className="dashboard-header"><div><p className="eyebrow">{user.role} WORKSPACE</p><span className="mobile-shop-name">Rahman Store</span></div><div className="header-actions"><span className="notification">○</span><button className="mobile-sign-out" onClick={onSignOut}>Sign out</button></div></header>
       <section className="dashboard-content"><h1>Good morning, {user.name.split(' ')[0]}.</h1><p className="dashboard-copy">Here is what is happening across your shop today.</p>{error && <p className="dashboard-error" role="alert">{error}</p>}
         {!data ? <div className="dashboard-loading"><span /> Loading today’s numbers...</div> : <>
@@ -287,6 +288,42 @@ function Inventory({ user, onHome, onProducts, onSales, onSignOut }: { user: Use
   }
 
   return <main className="dashboard"><aside className="sidebar"><div className="brand-lockup"><div className="brand-mark small">R</div><span>Rahman Store</span></div><nav><button className="nav-item" onClick={onHome}><span>⌂</span>Overview</button><button className="nav-item" onClick={onProducts}><span>□</span>Products</button><button className="nav-item active"><span>▦</span>Inventory</button><button className="nav-item"><span>＋</span>Sales / POS</button></nav><button className="nav-item sign-out" onClick={onSignOut}>↪ <span>Sign out</span></button></aside><section className="dashboard-main"><header className="dashboard-header"><div><p className="eyebrow">{user.role} WORKSPACE</p><span className="mobile-shop-name">Rahman Store</span></div><button className="mobile-sign-out" onClick={onSignOut}>Sign out</button></header><section className="dashboard-content products-content"><div className="products-heading"><div><p className="eyebrow">STOCK CONTROL</p><h1>Inventory</h1><p className="dashboard-copy">Every movement is recorded with who changed it and when.</p></div></div>{error && <p className="dashboard-error">{error}</p>}<form className="movement-panel" onSubmit={submitMovement}><div className="movement-tabs"><button type="button" className={mode === 'IN' ? 'movement-tab active' : 'movement-tab'} onClick={() => setMode('IN')}>Stock in</button><button type="button" className={mode === 'OUT' ? 'movement-tab active' : 'movement-tab'} onClick={() => setMode('OUT')}>Stock out</button><button type="button" className={mode === 'ADJUST' ? 'movement-tab active' : 'movement-tab'} onClick={() => setMode('ADJUST')}>Adjust count</button></div><div className="movement-fields"><label>Product<select required value={productId} onChange={(event) => setProductId(event.target.value)}><option value="">Choose product</option>{products.map((product) => <option value={product.id} key={product.id}>{product.name} · {product.stockQuantity} {product.unit}</option>)}</select></label><label>{mode === 'ADJUST' ? 'Counted quantity' : 'Quantity'}<input required type="number" min="0" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label><label>{mode === 'IN' ? 'Note' : 'Reason'}<input required minLength={3} value={reason} onChange={(event) => setReason(event.target.value)} placeholder={mode === 'IN' ? 'Supplier delivery' : 'Explain this change'} /></label><button className="primary-action" disabled={saving}>{saving ? 'Saving...' : 'Record movement'}</button></div></form><section className="dashboard-section inventory-history"><div className="section-heading"><div><p className="eyebrow">AUDIT TRAIL</p><h2>Recent movements</h2></div></div>{history.length === 0 ? <p className="empty-state">No inventory movements yet.</p> : <div className="history-list">{history.map((row) => <div className="history-row" key={row.id}><div><strong>{row.product.name}</strong><small>{row.product.sku} · {row.note ?? 'Stock movement'}</small></div><span className={`pill ${row.type === 'IN' ? 'in-stock' : row.type === 'OUT' ? 'out-of-stock' : 'low-stock'}`}>{row.type} {row.quantityChange > 0 ? `+${row.quantityChange}` : row.quantityChange}</span><div><strong>{row.stockAfter} {row.product.unit}</strong><small>{row.changedBy} · {new Date(row.createdAt).toLocaleDateString('en-BD')}</small></div></div>)}</div>}</section></section></section><nav className="mobile-nav"><button onClick={onHome}>⌂<small>Home</small></button><button onClick={onProducts}>□<small>Products</small></button><button className="active">▦<small>Stock</small></button><button>≡<small>More</small></button></nav></main>;
+}
+
+function Purchases({ user, onHome, onProducts, onInventory, onSignOut }: { user: User; onHome: () => void; onProducts: () => void; onInventory: () => void; onSignOut: () => void }) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [supplierId, setSupplierId] = useState('');
+  const [productId, setProductId] = useState('');
+  const [quantity, setQuantity] = useState('');
+  const [unitCost, setUnitCost] = useState('');
+  const [paidAmount, setPaidAmount] = useState('');
+  const [referenceNo, setReferenceNo] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('shop_access_token');
+    const headers = { Authorization: `Bearer ${token}` };
+    Promise.all([fetch(`${API_URL}/api/v1/products?pageSize=100`, { headers }), fetch(`${API_URL}/api/v1/suppliers?pageSize=100`, { headers })]).then(async ([productResponse, supplierResponse]) => {
+      if (!productResponse.ok || !supplierResponse.ok) throw new Error('Purchase data could not be loaded');
+      const productBody = await productResponse.json() as { data: { products: Product[] } };
+      const supplierBody = await supplierResponse.json() as { data: Supplier[] };
+      setProducts(productBody.data.products); setSuppliers(supplierBody.data);
+    }).catch((loadError: unknown) => setError(loadError instanceof Error ? loadError.message : 'Purchase data could not be loaded'));
+  }, []);
+
+  const total = Number(quantity || 0) * Number(unitCost || 0);
+  async function submitPurchase(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); setError(''); setMessage('');
+    const token = localStorage.getItem('shop_access_token');
+    const response = await fetch(`${API_URL}/api/v1/purchases`, { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: JSON.stringify({ supplierId, items: [{ productId, quantity: Number(quantity), unitCost: Number(unitCost) }], paidAmount: Number(paidAmount || 0), referenceNo, updateCostPrice: true }) });
+    if (!response.ok) { const body = await response.json() as { error?: { message?: string } }; setError(body.error?.message ?? 'Purchase could not be saved'); return; }
+    const body = await response.json() as { data: { total: number; dueAmount: number } };
+    setMessage(`Purchase received · ${formatMoney(body.data.total)} · Due ${formatMoney(body.data.dueAmount)}`); setQuantity(''); setUnitCost(''); setPaidAmount(''); setReferenceNo('');
+  }
+
+  return <main className="dashboard"><aside className="sidebar"><div className="brand-lockup"><div className="brand-mark small">R</div><span>Rahman Store</span></div><nav><button className="nav-item" onClick={onHome}><span>⌂</span>Overview</button><button className="nav-item" onClick={onProducts}><span>□</span>Products</button><button className="nav-item" onClick={onInventory}><span>▦</span>Inventory</button><button className="nav-item active"><span>↗</span>Purchases</button></nav><button className="nav-item sign-out" onClick={onSignOut}>↪ <span>Sign out</span></button></aside><section className="dashboard-main"><header className="dashboard-header"><div><p className="eyebrow">{user.role} WORKSPACE</p><span className="mobile-shop-name">Rahman Store</span></div><button className="mobile-sign-out" onClick={onSignOut}>Sign out</button></header><section className="dashboard-content products-content"><div className="products-heading"><div><p className="eyebrow">STOCK RECEIVING</p><h1>Purchases</h1><p className="dashboard-copy">Receive stock and keep supplier balances accurate.</p></div></div>{message && <p className="success-message">{message}</p>}{error && <p className="dashboard-error">{error}</p>}<form className="purchase-form" onSubmit={submitPurchase}><div className="form-grid"><label>Supplier<select required value={supplierId} onChange={(event) => setSupplierId(event.target.value)}><option value="">Choose supplier</option>{suppliers.map((supplier) => <option value={supplier.id} key={supplier.id}>{supplier.name} · {supplier.phone}</option>)}</select></label><label>Product<select required value={productId} onChange={(event) => setProductId(event.target.value)}><option value="">Choose product</option>{products.map((product) => <option value={product.id} key={product.id}>{product.name} · stock {product.stockQuantity}</option>)}</select></label><label>Quantity<input required type="number" min="1" step="1" value={quantity} onChange={(event) => setQuantity(event.target.value)} /></label><label>Unit cost<input required type="number" min="0" step="0.01" value={unitCost} onChange={(event) => setUnitCost(event.target.value)} /></label><label>Paid amount<input required type="number" min="0" step="0.01" value={paidAmount} onChange={(event) => setPaidAmount(event.target.value)} /></label><label>Reference number<input value={referenceNo} onChange={(event) => setReferenceNo(event.target.value)} placeholder="Supplier invoice no." /></label></div><div className="purchase-summary"><span>Total purchase <strong>{formatMoney(total)}</strong></span><button className="primary-action" disabled={!supplierId || !productId}>Receive stock</button></div></form></section></section></main>;
 }
 
 export default App;
