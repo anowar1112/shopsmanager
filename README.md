@@ -7,9 +7,7 @@ A retail shop management system with two faces on one backend:
 
 ## Project Summary
 
-The project summary video is available locally as `projectsummary.mov`.
-Upload it as a GitHub Release asset or through Git LFS to publish it with the
-repository.
+[Watch the project summary video](projectsummary.mov)
 
 ## Stack
 
