@@ -4,11 +4,12 @@ import { prisma } from '../../lib/prisma.js';
 import { ok } from '../../lib/respond.js';
 import { asyncHandler } from '../../middleware/error-handler.js';
 import { requireAuth } from '../../middleware/auth.js';
+import { requirePermission } from '../../middleware/permission.js';
 
 const router: ExpressRouter = Router();
 const money = (value: unknown) => Number(value ?? 0);
 
-router.get('/overview', requireAuth, asyncHandler(async (req, res) => {
+router.get('/overview', requireAuth, requirePermission('report:operational'), asyncHandler(async (req, res) => {
   const parsed = dateRangeSchema.parse(req.query);
   const to = parsed.to ?? new Date();
   const from = parsed.from ?? new Date(to.getTime() - 29 * 24 * 60 * 60 * 1000);

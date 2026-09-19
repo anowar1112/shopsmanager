@@ -3,6 +3,7 @@ import { asyncHandler } from '../../middleware/error-handler.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { prisma } from '../../lib/prisma.js';
 import { ok } from '../../lib/respond.js';
+import { requirePermission } from '../../middleware/permission.js';
 
 const router: ExpressRouter = Router();
 
@@ -14,7 +15,7 @@ function startOfToday() {
 
 const money = (value: unknown) => Number(value ?? 0);
 
-router.get('/summary', requireAuth, asyncHandler(async (req, res) => {
+router.get('/summary', requireAuth, requirePermission('dashboard:operational'), asyncHandler(async (req, res) => {
   const shopId = req.user!.shopId;
   const today = startOfToday();
   const [sales, orders, expenses, products, recentSales, recentExpenses, recentInventory] = await Promise.all([

@@ -5,11 +5,12 @@ import { ok } from '../../lib/respond.js';
 import { asyncHandler } from '../../middleware/error-handler.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { ApiError } from '../../lib/api-error.js';
+import { requirePermission } from '../../middleware/permission.js';
 
 const router: ExpressRouter = Router();
 const money = (value: number) => Number(value.toFixed(2));
 
-router.get('/', requireAuth, asyncHandler(async (req, res) => {
+router.get('/', requireAuth, requirePermission('sale:read'), asyncHandler(async (req, res) => {
   const query = saleQuerySchema.parse(req.query);
   const where = {
     shopId: req.user!.shopId,
@@ -27,7 +28,7 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   return ok(res, sales.map((sale) => ({ ...sale, subtotal: Number(sale.subtotal), total: Number(sale.total), dueAmount: Number(sale.dueAmount), customer: sale.customer?.name ?? 'Walk-in customer', employee: sale.soldBy.name })), { page: query.page, pageSize: query.pageSize, total, totalPages: Math.max(1, Math.ceil(total / query.pageSize)) });
 }));
 
-router.post('/', requireAuth, asyncHandler(async (req, res) => {
+router.post('/', requireAuth, requirePermission('sale:create'), asyncHandler(async (req, res) => {
   const input = createSaleSchema.parse(req.body);
   const productIds = [...new Set(input.items.map((item) => item.productId))];
   if (productIds.length !== input.items.length) throw ApiError.badRequest('A product can only appear once in the cart');

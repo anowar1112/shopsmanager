@@ -5,10 +5,11 @@ import { ok } from '../../lib/respond.js';
 import { asyncHandler } from '../../middleware/error-handler.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { ApiError } from '../../lib/api-error.js';
+import { requirePermission } from '../../middleware/permission.js';
 
 const router: ExpressRouter = Router();
 
-router.get('/', requireAuth, asyncHandler(async (req, res) => {
+router.get('/', requireAuth, requirePermission('product:read'), asyncHandler(async (req, res) => {
   const query = productQuerySchema.parse(req.query);
   const where = {
     shopId: req.user!.shopId,
@@ -44,7 +45,7 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   return ok(res, { products, categories }, { page: query.page, pageSize: query.pageSize, total, totalPages: Math.max(1, Math.ceil(total / query.pageSize)) });
 }));
 
-router.post('/', requireAuth, asyncHandler(async (req, res) => {
+router.post('/', requireAuth, requirePermission('product:create'), asyncHandler(async (req, res) => {
   const input = createProductSchema.parse(req.body);
   const category = await prisma.category.findFirst({ where: { id: input.categoryId, shopId: req.user!.shopId, deletedAt: null } });
   if (!category) throw ApiError.notFound('Category');
@@ -77,7 +78,7 @@ router.post('/', requireAuth, asyncHandler(async (req, res) => {
   return res.status(201).json({ success: true, data: product });
 }));
 
-router.patch('/:id', requireAuth, asyncHandler(async (req, res) => {
+router.patch('/:id', requireAuth, requirePermission('product:update'), asyncHandler(async (req, res) => {
   if (req.user!.role === 'EMPLOYEE') throw ApiError.forbidden('Only a manager or owner can edit products');
   const input = updateProductSchema.parse(req.body);
   const existing = await prisma.product.findFirst({ where: { id: req.params.id, shopId: req.user!.shopId, deletedAt: null } });
@@ -90,7 +91,7 @@ router.patch('/:id', requireAuth, asyncHandler(async (req, res) => {
   return ok(res, product);
 }));
 
-router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
+router.delete('/:id', requireAuth, requirePermission('product:delete'), asyncHandler(async (req, res) => {
   if (req.user!.role !== 'OWNER') throw ApiError.forbidden('Only the owner can archive products');
   const product = await prisma.product.findFirst({ where: { id: req.params.id, shopId: req.user!.shopId, deletedAt: null } });
   if (!product) throw ApiError.notFound('Product');
@@ -98,7 +99,7 @@ router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
   return res.status(204).end();
 }));
 
-router.post('/:id/stock-in', requireAuth, asyncHandler(async (req, res) => {
+router.post('/:id/stock-in', requireAuth, requirePermission('inventory:stock-in'), asyncHandler(async (req, res) => {
   const input = stockInSchema.parse({ ...req.body, productId: req.params.id });
   const product = await prisma.product.findFirst({ where: { id: input.productId, shopId: req.user!.shopId, deletedAt: null } });
   if (!product) throw ApiError.notFound('Product');
@@ -113,7 +114,7 @@ router.post('/:id/stock-in', requireAuth, asyncHandler(async (req, res) => {
   return ok(res, updated);
 }));
 
-router.post('/:id/stock-out', requireAuth, asyncHandler(async (req, res) => {
+router.post('/:id/stock-out', requireAuth, requirePermission('inventory:stock-out'), asyncHandler(async (req, res) => {
   const input = stockOutSchema.parse({ ...req.body, productId: req.params.id });
   const product = await prisma.product.findFirst({ where: { id: input.productId, shopId: req.user!.shopId, deletedAt: null } });
   if (!product) throw ApiError.notFound('Product');
@@ -127,7 +128,7 @@ router.post('/:id/stock-out', requireAuth, asyncHandler(async (req, res) => {
   return ok(res, updated);
 }));
 
-router.post('/:id/adjust', requireAuth, asyncHandler(async (req, res) => {
+router.post('/:id/adjust', requireAuth, requirePermission('inventory:adjust'), asyncHandler(async (req, res) => {
   const input = stockAdjustSchema.parse({ ...req.body, productId: req.params.id });
   const product = await prisma.product.findFirst({ where: { id: input.productId, shopId: req.user!.shopId, deletedAt: null } });
   if (!product) throw ApiError.notFound('Product');
@@ -140,7 +141,7 @@ router.post('/:id/adjust', requireAuth, asyncHandler(async (req, res) => {
   return ok(res, updated);
 }));
 
-router.get('/inventory/history', requireAuth, asyncHandler(async (req, res) => {
+router.get('/inventory/history', requireAuth, requirePermission('inventory:read'), asyncHandler(async (req, res) => {
   const query = inventoryHistoryQuerySchema.parse(req.query);
   const where = { shopId: req.user!.shopId, ...(query.productId ? { productId: query.productId } : {}), ...(query.type !== 'all' ? { type: query.type } : {}), ...(query.from || query.to ? { createdAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}) };
   const [total, rows] = await Promise.all([

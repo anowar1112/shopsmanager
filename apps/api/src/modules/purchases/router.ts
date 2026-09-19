@@ -5,11 +5,12 @@ import { ok } from '../../lib/respond.js';
 import { asyncHandler } from '../../middleware/error-handler.js';
 import { requireAuth } from '../../middleware/auth.js';
 import { ApiError } from '../../lib/api-error.js';
+import { requirePermission } from '../../middleware/permission.js';
 
 const router: ExpressRouter = Router();
 const money = (value: number) => Number(value.toFixed(2));
 
-router.get('/', requireAuth, asyncHandler(async (req, res) => {
+router.get('/', requireAuth, requirePermission('purchase:read'), asyncHandler(async (req, res) => {
   const query = purchaseQuerySchema.parse(req.query);
   const where = { shopId: req.user!.shopId, ...(query.supplierId ? { supplierId: query.supplierId } : {}), ...(query.q ? { referenceNo: { contains: query.q, mode: 'insensitive' as const } } : {}), ...(query.from || query.to ? { purchasedAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}) };
   const [total, purchases] = await Promise.all([
@@ -19,7 +20,7 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   return ok(res, purchases.map((purchase) => ({ ...purchase, subtotal: Number(purchase.subtotal), total: Number(purchase.total), dueAmount: Number(purchase.dueAmount), supplier: purchase.supplier.name, createdBy: purchase.createdBy.name })), { page: query.page, pageSize: query.pageSize, total, totalPages: Math.max(1, Math.ceil(total / query.pageSize)) });
 }));
 
-router.post('/', requireAuth, asyncHandler(async (req, res) => {
+router.post('/', requireAuth, requirePermission('purchase:create'), asyncHandler(async (req, res) => {
   const input = createPurchaseSchema.parse(req.body);
   const productIds = [...new Set(input.items.map((item) => item.productId))];
   if (productIds.length !== input.items.length) throw ApiError.badRequest('A product can only appear once in a purchase');
