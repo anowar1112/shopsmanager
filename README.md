@@ -1,4 +1,4 @@
-# Rahman Store — Retail Shop Manager
+# anowar & dalia — Retail Shop Manager
 
 A retail shop management system with two faces on one backend:
 
