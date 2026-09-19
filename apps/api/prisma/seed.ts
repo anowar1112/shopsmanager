@@ -70,7 +70,7 @@ async function main() {
 
   const shop = await prisma.shop.create({
     data: {
-      name: 'anowar & dalia',
+      name: 'Anowar & Dalia Shop',
       phone: '01711223344',
       address: 'Shop 12, Mirpur 10 Circle, Dhaka 1216',
       invoicePrefix: 'INV',

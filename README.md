@@ -1,4 +1,4 @@
-# anowar & dalia — Retail Shop Manager
+# Anowar & Dalia Shop — Retail Shop Manager
 
 A retail shop management system with two faces on one backend:
 
