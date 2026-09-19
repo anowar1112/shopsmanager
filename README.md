@@ -5,6 +5,12 @@ A retail shop management system with two faces on one backend:
 - **Employee desktop app** — fast operational work: POS, stock, purchases, customers, expenses.
 - **Owner mobile dashboard** — summary, profit, trends and alerts, built for a phone.
 
+## Project Summary
+
+The project summary video is available locally as `projectsummary.mov`.
+Upload it as a GitHub Release asset or through Git LFS to publish it with the
+repository.
+
 ## Stack
 
 | Layer | Choice |
