@@ -11,7 +11,7 @@ A retail shop management system with two faces on one backend:
 |---|---|
 | Frontend | Vite + React 19 + TypeScript + responsive CSS |
 | Backend | Node 20+ + Express + TypeScript, feature routers with shared validation |
-| Database | PostgreSQL + Prisma ORM |
+| Database | Neon serverless PostgreSQL + Prisma ORM |
 | Shared | `@shop/shared` — Zod schemas, types and the permission map used by **both** sides |
 
 ## Getting started
@@ -20,7 +20,7 @@ A retail shop management system with two faces on one backend:
 # 1. install
 pnpm install
 
-# 2. start local postgres (or point DATABASE_URL at your own database)
+# 2. start local postgres, or use the configured Neon PostgreSQL database
 pnpm db:up
 
 # 3. configure
@@ -35,6 +35,15 @@ pnpm db:seed
 # 5. run
 pnpm dev            # api :4000 and web :5173 together
 ```
+
+### Database
+
+The development environment can use a local PostgreSQL container through
+`pnpm db:up`. The deployed/demo environment uses **Neon PostgreSQL** through
+the `DATABASE_URL` connection string in `apps/api/.env`. Prisma migrations,
+seed data and all API queries use the same PostgreSQL-compatible Neon database.
+Keep the real connection string private and use `apps/api/.env.example` as the
+safe configuration template.
 
 Check the API is alive: <http://localhost:4000/health>
 
