@@ -16,6 +16,8 @@ import { customersRouter } from './modules/customers/router.js';
 import { suppliersRouter } from './modules/suppliers/router.js';
 import { purchasesRouter } from './modules/purchases/router.js';
 import { expensesRouter } from './modules/expenses/router.js';
+import { reportsRouter } from './modules/reports/router.js';
+import { notificationsRouter } from './modules/notifications/router.js';
 
 export function createApp(): Application {
   const app = express();
@@ -48,6 +50,8 @@ export function createApp(): Application {
   app.use('/api/v1/suppliers', suppliersRouter);
   app.use('/api/v1/purchases', purchasesRouter);
   app.use('/api/v1/expenses', expensesRouter);
+  app.use('/api/v1/reports', reportsRouter);
+  app.use('/api/v1/notifications', notificationsRouter);
   // app.use('/api/v1/products', productRouter);
   // ...
 
