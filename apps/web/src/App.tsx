@@ -10,6 +10,7 @@ type DashboardData = {
   recentSales: { id: string; invoiceNo: string; total: number; status: string; createdAt: string; customer: string; employee: string }[];
   recentActivity: { id: string; type: string; detail: string; by: string; createdAt: string }[];
 };
+type Product = { id: string; name: string; sku: string; unit: string; costPrice: number; sellingPrice: number; stockQuantity: number; minStockLevel: number; stockStatus: string; category: { name: string } };
 
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:4000';
 
@@ -21,6 +22,7 @@ function App() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [screen, setScreen] = useState<'dashboard' | 'products'>('dashboard');
 
   useEffect(() => {
     const savedToken = localStorage.getItem('shop_access_token');
@@ -87,7 +89,7 @@ function App() {
     }
   }
 
-  if (user) return <Dashboard user={user} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} />;
+  if (user) return screen === 'products' ? <Products user={user} onHome={() => setScreen('dashboard')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} /> : <Dashboard user={user} onProducts={() => setScreen('products')} onSignOut={async () => { await fetch(`${API_URL}/api/v1/auth/logout`, { method: 'POST', credentials: 'include' }); localStorage.removeItem('shop_access_token'); setUser(null); }} />;
 
   return (
     <main className="auth-layout">
@@ -125,7 +127,7 @@ function App() {
   );
 }
 
-function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
+function Dashboard({ user, onProducts, onSignOut }: { user: User; onProducts: () => void; onSignOut: () => void }) {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState('');
 
@@ -143,7 +145,7 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
 
   const metrics = data?.metrics;
   return <main className="dashboard">
-    <aside className="sidebar"><div className="brand-lockup"><div className="brand-mark small">R</div><span>Rahman Store</span></div><nav>{['Overview', 'Products', 'Inventory', 'Sales / POS', 'Purchases', 'Customers', 'Expenses', 'Reports'].map((item, index) => <button className={index === 0 ? 'nav-item active' : 'nav-item'} key={item}><span>{['⌂', '□', '▦', '＋', '↗', '◎', '◌', '▥'][index]}</span>{item}</button>)}</nav><button className="nav-item sign-out" onClick={onSignOut}>↪ <span>Sign out</span></button></aside>
+    <aside className="sidebar"><div className="brand-lockup"><div className="brand-mark small">R</div><span>Rahman Store</span></div><nav>{['Overview', 'Products', 'Inventory', 'Sales / POS', 'Purchases', 'Customers', 'Expenses', 'Reports'].map((item, index) => <button onClick={index === 1 ? onProducts : undefined} className={index === 0 ? 'nav-item active' : 'nav-item'} key={item}><span>{['⌂', '□', '▦', '＋', '↗', '◎', '◌', '▥'][index]}</span>{item}</button>)}</nav><button className="nav-item sign-out" onClick={onSignOut}>↪ <span>Sign out</span></button></aside>
     <section className="dashboard-main"><header className="dashboard-header"><div><p className="eyebrow">{user.role} WORKSPACE</p><span className="mobile-shop-name">Rahman Store</span></div><div className="header-actions"><span className="notification">○</span><button className="mobile-sign-out" onClick={onSignOut}>Sign out</button></div></header>
       <section className="dashboard-content"><h1>Good morning, {user.name.split(' ')[0]}.</h1><p className="dashboard-copy">Here is what is happening across your shop today.</p>{error && <p className="dashboard-error" role="alert">{error}</p>}
         {!data ? <div className="dashboard-loading"><span /> Loading today’s numbers...</div> : <>
@@ -153,6 +155,30 @@ function Dashboard({ user, onSignOut }: { user: User; onSignOut: () => void }) {
         <div className="status-strip"><span className="status-dot" /> Live data <span className="divider" /> Signed in as {user.email}</div>
       </section></section><nav className="mobile-nav"><button className="active">⌂<small>Home</small></button><button>＋<small>Sale</small></button><button>□<small>Products</small></button><button>≡<small>More</small></button></nav>
   </main>;
+}
+
+function Products({ user, onHome, onSignOut }: { user: User; onHome: () => void; onSignOut: () => void }) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [query, setQuery] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const token = localStorage.getItem('shop_access_token');
+    if (!token) return;
+    setLoading(true);
+    const params = new URLSearchParams({ pageSize: '100', q: query });
+    fetch(`${API_URL}/api/v1/products?${params}`, { headers: { Authorization: `Bearer ${token}` } })
+      .then(async (response) => {
+        if (!response.ok) throw new Error('Products could not be loaded');
+        return (await response.json() as { success: true; data: { products: Product[] } }).data.products;
+      })
+      .then(setProducts)
+      .catch((requestError: unknown) => setError(requestError instanceof Error ? requestError.message : 'Products could not be loaded'))
+      .finally(() => setLoading(false));
+  }, [query]);
+
+  return <main className="dashboard"><aside className="sidebar"><div className="brand-lockup"><div className="brand-mark small">R</div><span>Rahman Store</span></div><nav><button className="nav-item" onClick={onHome}><span>⌂</span>Overview</button><button className="nav-item active"><span>□</span>Products</button><button className="nav-item"><span>▦</span>Inventory</button><button className="nav-item"><span>＋</span>Sales / POS</button></nav><button className="nav-item sign-out" onClick={onSignOut}>↪ <span>Sign out</span></button></aside><section className="dashboard-main"><header className="dashboard-header"><div><p className="eyebrow">{user.role} WORKSPACE</p><span className="mobile-shop-name">Rahman Store</span></div><button className="mobile-sign-out" onClick={onSignOut}>Sign out</button></header><section className="dashboard-content products-content"><div className="products-heading"><div><p className="eyebrow">CATALOGUE</p><h1>Products</h1><p className="dashboard-copy">Keep your shelves, prices and stock in one clear view.</p></div><button className="primary-action">＋ Add product</button></div><div className="product-toolbar"><label className="search-box"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by product name or SKU" /></label><button className="filter-button">All stock⌄</button></div>{error && <p className="dashboard-error">{error}</p>}{loading ? <div className="dashboard-loading"><span /> Loading catalogue...</div> : products.length === 0 ? <div className="empty-panel"><strong>No products found</strong><span>Try a different name or SKU.</span></div> : <div className="product-table"><div className="product-table-head"><span>Product</span><span>Category</span><span>Price</span><span>Stock</span><span>Status</span></div>{products.map((product) => <div className="product-row" key={product.id}><div><strong>{product.name}</strong><small>{product.sku}</small></div><span className="category-cell">{product.category.name}</span><span>৳ {product.sellingPrice.toLocaleString('en-BD')}</span><span>{product.stockQuantity} {product.unit}<small>min {product.minStockLevel}</small></span><span className={`pill ${product.stockStatus}`}>{product.stockStatus.replace('-', ' ')}</span></div>)}</div>}<div className="status-strip"><span className="status-dot" /> {products.length} products shown <span className="divider" /> Signed in as {user.email}</div></section></section><nav className="mobile-nav"><button onClick={onHome}>⌂<small>Home</small></button><button className="active">□<small>Products</small></button><button>＋<small>Sale</small></button><button>≡<small>More</small></button></nav></main>;
 }
 
 export default App;

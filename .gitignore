@@ -8,3 +8,5 @@ build/
 coverage/
 uploads/
 .turbo/
+
+*.tsbuildinfo

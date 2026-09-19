@@ -10,6 +10,7 @@ import { errorHandler, notFoundHandler } from './middleware/error-handler.js';
 import { prisma } from './lib/prisma.js';
 import { authRouter } from './modules/auth/router.js';
 import { dashboardRouter } from './modules/dashboard/router.js';
+import { productsRouter } from './modules/products/router.js';
 
 export function createApp(): Application {
   const app = express();
@@ -36,6 +37,7 @@ export function createApp(): Application {
 
   app.use('/api/v1/auth', authRouter);
   app.use('/api/v1/dashboard', dashboardRouter);
+  app.use('/api/v1/products', productsRouter);
   // app.use('/api/v1/products', productRouter);
   // ...
 
