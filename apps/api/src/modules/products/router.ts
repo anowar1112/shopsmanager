@@ -1,9 +1,10 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import { productQuerySchema } from '@shop/shared';
+import { createProductSchema, productQuerySchema, stockInSchema, updateProductSchema } from '@shop/shared';
 import { prisma } from '../../lib/prisma.js';
 import { ok } from '../../lib/respond.js';
 import { asyncHandler } from '../../middleware/error-handler.js';
 import { requireAuth } from '../../middleware/auth.js';
+import { ApiError } from '../../lib/api-error.js';
 
 const router: ExpressRouter = Router();
 
@@ -41,6 +42,75 @@ router.get('/', requireAuth, asyncHandler(async (req, res) => {
   }));
 
   return ok(res, { products, categories }, { page: query.page, pageSize: query.pageSize, total, totalPages: Math.max(1, Math.ceil(total / query.pageSize)) });
+}));
+
+router.post('/', requireAuth, asyncHandler(async (req, res) => {
+  const input = createProductSchema.parse(req.body);
+  const category = await prisma.category.findFirst({ where: { id: input.categoryId, shopId: req.user!.shopId, deletedAt: null } });
+  if (!category) throw ApiError.notFound('Category');
+
+  const product = await prisma.$transaction(async (tx) => {
+    const created = await tx.product.create({
+      data: {
+        shopId: req.user!.shopId,
+        categoryId: input.categoryId,
+        name: input.name,
+        sku: input.sku,
+        barcode: input.barcode || null,
+        unit: input.unit,
+        costPrice: input.costPrice,
+        sellingPrice: input.sellingPrice,
+        stockQuantity: input.openingStock,
+        minStockLevel: input.minStockLevel,
+        imageUrl: input.imageUrl || null,
+        description: input.description || null,
+        isActive: input.isActive,
+      },
+    });
+    if (input.openingStock > 0) {
+      await tx.inventoryTransaction.create({
+        data: { shopId: req.user!.shopId, productId: created.id, type: 'IN', quantityChange: input.openingStock, stockBefore: 0, stockAfter: input.openingStock, unitCost: input.costPrice, referenceType: 'OPENING', note: 'Opening stock', createdById: req.user!.id },
+      });
+    }
+    return created;
+  });
+  return res.status(201).json({ success: true, data: product });
+}));
+
+router.patch('/:id', requireAuth, asyncHandler(async (req, res) => {
+  if (req.user!.role === 'EMPLOYEE') throw ApiError.forbidden('Only a manager or owner can edit products');
+  const input = updateProductSchema.parse(req.body);
+  const existing = await prisma.product.findFirst({ where: { id: req.params.id, shopId: req.user!.shopId, deletedAt: null } });
+  if (!existing) throw ApiError.notFound('Product');
+  if (input.categoryId) {
+    const category = await prisma.category.findFirst({ where: { id: input.categoryId, shopId: req.user!.shopId, deletedAt: null } });
+    if (!category) throw ApiError.notFound('Category');
+  }
+  const product = await prisma.product.update({ where: { id: existing.id }, data: { ...input, barcode: input.barcode || null, imageUrl: input.imageUrl || null, description: input.description || null } });
+  return ok(res, product);
+}));
+
+router.delete('/:id', requireAuth, asyncHandler(async (req, res) => {
+  if (req.user!.role !== 'OWNER') throw ApiError.forbidden('Only the owner can archive products');
+  const product = await prisma.product.findFirst({ where: { id: req.params.id, shopId: req.user!.shopId, deletedAt: null } });
+  if (!product) throw ApiError.notFound('Product');
+  await prisma.product.update({ where: { id: product.id }, data: { isActive: false, deletedAt: new Date() } });
+  return res.status(204).end();
+}));
+
+router.post('/:id/stock-in', requireAuth, asyncHandler(async (req, res) => {
+  const input = stockInSchema.parse({ ...req.body, productId: req.params.id });
+  const product = await prisma.product.findFirst({ where: { id: input.productId, shopId: req.user!.shopId, deletedAt: null } });
+  if (!product) throw ApiError.notFound('Product');
+  const updated = await prisma.$transaction(async (tx) => {
+    const stockAfter = product.stockQuantity + input.quantity;
+    const next = await tx.product.update({ where: { id: product.id }, data: { stockQuantity: stockAfter, ...(input.unitCost !== undefined ? { costPrice: input.unitCost } : {}) } });
+    await tx.inventoryTransaction.create({
+      data: { shopId: req.user!.shopId, productId: product.id, type: 'IN', quantityChange: input.quantity, stockBefore: product.stockQuantity, stockAfter, unitCost: input.unitCost ?? product.costPrice, referenceType: 'PURCHASE', note: input.note || 'Stock received', createdById: req.user!.id },
+    });
+    return next;
+  });
+  return ok(res, updated);
 }));
 
 export { router as productsRouter };
