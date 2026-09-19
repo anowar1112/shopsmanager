@@ -1,5 +1,5 @@
 import { Router, type Router as ExpressRouter } from 'express';
-import { createProductSchema, productQuerySchema, stockInSchema, updateProductSchema } from '@shop/shared';
+import { createProductSchema, inventoryHistoryQuerySchema, productQuerySchema, stockAdjustSchema, stockInSchema, stockOutSchema, updateProductSchema } from '@shop/shared';
 import { prisma } from '../../lib/prisma.js';
 import { ok } from '../../lib/respond.js';
 import { asyncHandler } from '../../middleware/error-handler.js';
@@ -111,6 +111,43 @@ router.post('/:id/stock-in', requireAuth, asyncHandler(async (req, res) => {
     return next;
   });
   return ok(res, updated);
+}));
+
+router.post('/:id/stock-out', requireAuth, asyncHandler(async (req, res) => {
+  const input = stockOutSchema.parse({ ...req.body, productId: req.params.id });
+  const product = await prisma.product.findFirst({ where: { id: input.productId, shopId: req.user!.shopId, deletedAt: null } });
+  if (!product) throw ApiError.notFound('Product');
+  if (input.quantity > product.stockQuantity) throw ApiError.insufficientStock(`Only ${product.stockQuantity} ${product.unit} available`);
+  const stockAfter = product.stockQuantity - input.quantity;
+  const updated = await prisma.$transaction(async (tx) => {
+    const next = await tx.product.update({ where: { id: product.id }, data: { stockQuantity: stockAfter } });
+    await tx.inventoryTransaction.create({ data: { shopId: req.user!.shopId, productId: product.id, type: 'OUT', quantityChange: -input.quantity, stockBefore: product.stockQuantity, stockAfter, unitCost: product.costPrice, referenceType: 'MANUAL', note: input.reason, createdById: req.user!.id } });
+    return next;
+  });
+  return ok(res, updated);
+}));
+
+router.post('/:id/adjust', requireAuth, asyncHandler(async (req, res) => {
+  const input = stockAdjustSchema.parse({ ...req.body, productId: req.params.id });
+  const product = await prisma.product.findFirst({ where: { id: input.productId, shopId: req.user!.shopId, deletedAt: null } });
+  if (!product) throw ApiError.notFound('Product');
+  const quantityChange = input.countedQuantity - product.stockQuantity;
+  const updated = await prisma.$transaction(async (tx) => {
+    const next = await tx.product.update({ where: { id: product.id }, data: { stockQuantity: input.countedQuantity } });
+    await tx.inventoryTransaction.create({ data: { shopId: req.user!.shopId, productId: product.id, type: 'ADJUST', quantityChange, stockBefore: product.stockQuantity, stockAfter: input.countedQuantity, unitCost: product.costPrice, referenceType: 'MANUAL', note: input.reason, createdById: req.user!.id } });
+    return next;
+  });
+  return ok(res, updated);
+}));
+
+router.get('/inventory/history', requireAuth, asyncHandler(async (req, res) => {
+  const query = inventoryHistoryQuerySchema.parse(req.query);
+  const where = { shopId: req.user!.shopId, ...(query.productId ? { productId: query.productId } : {}), ...(query.type !== 'all' ? { type: query.type } : {}), ...(query.from || query.to ? { createdAt: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } } : {}) };
+  const [total, rows] = await Promise.all([
+    prisma.inventoryTransaction.count({ where }),
+    prisma.inventoryTransaction.findMany({ where, include: { product: { select: { name: true, sku: true, unit: true } }, createdBy: { select: { name: true } } }, orderBy: { createdAt: 'desc' }, skip: (query.page - 1) * query.pageSize, take: query.pageSize }),
+  ]);
+  return ok(res, rows.map((row) => ({ ...row, unitCost: row.unitCost ? Number(row.unitCost) : null, product: row.product, changedBy: row.createdBy.name })), { page: query.page, pageSize: query.pageSize, total, totalPages: Math.max(1, Math.ceil(total / query.pageSize)) });
 }));
 
 export { router as productsRouter };
